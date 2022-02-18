@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Anamorphic Voxel Generator</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="" />
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <link rel="icon" href="img/favicon.png" />
+  </head>
+  <body onload="main()">
+    <div class="bottom">
+      <canvas id="debug" height="50" width="450"> </canvas>
+      <div class="drawing">
+        <canvas id="canvasA" height="200" width="200"> </canvas>
+        <div class="divider"></div>
+        <canvas id="canvasB" height="200" width="200"> </canvas>
+      </div>
+    </div>
+    <div id="result"></div>
+  </body>
+  <script src="index.js"></script>
+  <script src="draw.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</html>

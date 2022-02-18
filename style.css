@@ -1,0 +1,26 @@
+html {
+  background-color: black;
+  color: white;
+}
+
+canvas {
+  background-color: white;
+  border: 1px solid #222222;
+}
+
+.drawing {
+  display: flex;
+  flex-direction: row;
+}
+
+.bottom {
+  display: grid;
+}
+
+.divider {
+  width: 50px;
+}
+
+.result {
+  width: 800px;
+}
