@@ -16,7 +16,7 @@ class Sides {
  * Draw the canvas border and pixels
  * @type {function}
  **/
-function initCanvas(side, ctx, width, blockSize, voxelCanvas) {
+function initCanvas(side, ctx, width, blockSize) {
   fetch(side.filename)
     .then((response) => {
       return response.json();
@@ -28,7 +28,7 @@ function initCanvas(side, ctx, width, blockSize, voxelCanvas) {
       } else {
         imageB = file.data;
 
-        //voxelCanvas.init();
+        voxelCanvas.init();
       }
       drawGrid(ctx, width, blockSize);
     });
@@ -49,45 +49,41 @@ function main() {
 
   const debug = document.getElementById("debug").getContext("2d");
 
-  const voxelCanvas = new VoxelCanvas();
-
-  initCanvas(Sides.A, ctxA, width, blockSize, voxelCanvas);
+  initCanvas(Sides.A, ctxA, width, blockSize);
   initCanvas(Sides.B, ctxB, width, blockSize, voxelCanvas);
 
   canvasA.addEventListener("mousemove", (e) => {
+    const positionX = Math.floor((e.x - canvasA.offsetLeft) / blockSize);
+    const positionY = Math.floor((e.y - canvasA.offsetTop) / blockSize);
     if (e.buttons === 1) {
-      const positionX = Math.floor((e.x - canvasA.offsetLeft) / blockSize);
-      const positionY = Math.floor((e.y - canvasA.offsetTop) / blockSize);
-
       imageA[positionY][positionX] = true;
 
       ctxA.clearRect(0, 0, width, width);
       drawArt(imageA, ctxA, blockSize);
       drawGrid(ctxA, width, blockSize);
 
-      voxelCanvas.requestUpdate();
+      voxelCanvas.requestUpdate({
+        remove: false,
+        index: positionY * 16 + positionX,
+      });
     }
 
     if (e.buttons === 2) {
-      const positionX = Math.floor((e.x - canvasA.offsetLeft) / blockSize);
-      const positionY = Math.floor((e.y - canvasA.offsetTop) / blockSize);
-
       imageA[positionY][positionX] = false;
 
       ctxA.clearRect(0, 0, width, width);
       drawArt(imageA, ctxA, blockSize);
       drawGrid(ctxA, width, blockSize);
 
-      voxelCanvas.requestUpdate();
+      voxelCanvas.requestUpdate({
+        remove: true,
+        index: positionY * 16 + positionX,
+      });
     }
 
     debug.clearRect(0, 0, width, 12);
     debug.font = "10px Arial";
-    debug.fillText(
-      `Location: ${e.x - canvasA.offsetLeft}, ${e.y - canvasA.offsetTop}`,
-      0,
-      10
-    );
+    debug.fillText(`Location: ${positionX}, ${positionY}`, 0, 10);
   });
 
   canvasB.addEventListener("mousemove", (e) => {
@@ -145,6 +141,7 @@ class VoxelCanvas {
     this.materials = [];
     this.cubes = [];
     this.update = false;
+    this.updateBlock = {};
   }
 
   init() {
@@ -162,23 +159,37 @@ class VoxelCanvas {
       100
     );
 
-    const renderer = new THREE.WebGLRenderer();
+    const renderer = new THREE.WebGLRenderer({
+      canvas: document.querySelector("#result"),
+    });
     renderer.setSize(width, height);
-    document.getElementById("result").appendChild(renderer.domElement);
 
     camera.position.z = 10;
 
     const object = new THREE.Object3D();
     this.drawCubes(object);
     scene.add(object);
+    object.rotation.y = 1.57;
 
     const animate = () => {
       requestAnimationFrame(animate);
 
       if (this.update) {
         console.log("hit");
-        this.drawCubes(object);
+        if (this.updateBlock.remove) {
+          this.cubes[this.updateBlock.index].visible = false;
+        } else {
+          this.cubes[this.updateBlock.index].visible = true;
+        }
+
         this.update = false;
+      }
+
+      object.rotation.y += 0.01;
+
+      if (object.rotation.y > 1.57 * 3) {
+        swapButton();
+        object.rotation.y = 1.57;
       }
 
       renderer.render(scene, camera);
@@ -190,21 +201,61 @@ class VoxelCanvas {
   drawCubes(object) {
     for (let y = 0; y < 16; y++) {
       for (let x = 0; x < 16; x++) {
-        if (imageA[y][x] === true) {
-          this.geometries[y] = new THREE.BoxGeometry(10, 10, 10);
-          this.materials[y] = new THREE.MeshBasicMaterial({
-            color: 0xb000ba,
-          });
-          this.cubes[y] = new THREE.Mesh(this.geometries[y], this.materials[y]);
-          object.add(this.cubes[y]);
-          this.cubes[y].position.x = x * -10;
-          this.cubes[y].position.y = y * -10;
+        const index = y * 16 + x;
+        this.geometries[index] = new THREE.BoxGeometry(10, 10, 10);
+        this.materials[index] = new THREE.MeshBasicMaterial({
+          color: 0xb000ba,
+        });
+        this.cubes[index] = new THREE.Mesh(
+          this.geometries[index],
+          this.materials[index]
+        );
+        object.add(this.cubes[index]);
+        this.cubes[index].position.x = x * 10 - (16 * 10) / 2;
+        this.cubes[index].position.y = y * -10 - (16 * -10) / 2;
+        if (imageA[y][x] === false) {
+          this.cubes[index].visible = false;
         }
       }
     }
   }
 
-  requestUpdate() {
+  resetCanvas() {
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const index = y * 16 + x;
+        this.cubes[index].visible = imageA[y][x];
+      }
+    }
+  }
+
+  requestUpdate(updateBlock) {
     this.update = true;
+    this.updateBlock = updateBlock;
   }
 }
+
+function swapButton() {
+  const imageC = imageA;
+  imageA = imageB;
+  imageB = imageC;
+
+  const canvasA = document.getElementById("canvasA");
+  const ctxA = canvasA.getContext("2d");
+  const canvasB = document.getElementById("canvasB");
+  const ctxB = canvasB.getContext("2d");
+  const width = canvasA.width;
+  const blockSize = width / PIXELCOUNT;
+
+  ctxA.clearRect(0, 0, width, width);
+  drawArt(imageA, ctxA, blockSize);
+  drawGrid(ctxA, width, blockSize);
+
+  ctxB.clearRect(0, 0, width, width);
+  drawArt(imageB, ctxB, blockSize);
+  drawGrid(ctxB, width, blockSize);
+
+  voxelCanvas.resetCanvas();
+}
+
+const voxelCanvas = new VoxelCanvas();
