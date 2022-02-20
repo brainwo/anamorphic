@@ -15,10 +15,10 @@ class Alignments {
  * Draw the individual block on canvas
  * @type {function}
  **/
-function drawBlock(x, y, ctx, blockSize) {
+function drawBlock(x, y, ctx, blockSize, color) {
   ctx.beginPath();
   ctx.rect(x * blockSize, y * blockSize, blockSize, blockSize);
-  ctx.fillStyle = "#2c6eba";
+  ctx.fillStyle = color;
   ctx.fill();
 }
 
@@ -53,8 +53,8 @@ function drawLines(alignment, ctx, width, blockSize) {
 function drawArt(data, ctx, blockSize) {
   for (let y = 0; y < data.length; y++) {
     for (let x = 0; x < data[y].length; x++) {
-      if (data[y][x] === true) {
-        drawBlock(x, y, ctx, blockSize);
+      if (data[y][x] !== null) {
+        drawBlock(x, y, ctx, blockSize, data[y][x]);
       }
     }
   }

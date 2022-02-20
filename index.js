@@ -1,6 +1,7 @@
 const PIXELCOUNT = 16;
 let imageA;
 let imageB;
+let selectedColor;
 
 class Sides {
   static A = new Sides(true);
@@ -63,10 +64,13 @@ function main() {
   const ctxA = canvasA.getContext("2d");
   const canvasB = document.getElementById("canvasB");
   const ctxB = canvasB.getContext("2d");
+
   const width = canvasA.width;
   const blockSize = width / PIXELCOUNT;
 
   reset();
+
+  initPalette();
 
   function canvasDraw(ctx, image, positionX, positionY) {
     image[positionY][positionX] = true;
@@ -93,7 +97,7 @@ function main() {
     const positionX = Math.floor((e.x - canvasA.offsetLeft) / blockSize);
     const positionY = Math.floor((e.y - canvasA.offsetTop) / blockSize);
     if (e.buttons === 1) {
-      imageA[positionY][positionX] = true;
+      imageA[positionY][positionX] = selectedColor;
 
       ctxA.clearRect(0, 0, width, width);
       drawArt(imageA, ctxA, blockSize);
@@ -107,7 +111,7 @@ function main() {
     }
 
     if (e.buttons === 2) {
-      imageA[positionY][positionX] = false;
+      imageA[positionY][positionX] = null;
 
       ctxA.clearRect(0, 0, width, width);
       drawArt(imageA, ctxA, blockSize);
@@ -133,7 +137,7 @@ function main() {
       const positionX = Math.floor((e.x - canvasB.offsetLeft) / blockSize);
       const positionY = Math.floor((e.y - canvasB.offsetTop) / blockSize);
 
-      imageB[positionY][positionX] = true;
+      imageB[positionY][positionX] = selectedColor;
 
       ctxB.clearRect(0, 0, width, width);
       drawArt(imageB, ctxB, blockSize);
@@ -144,7 +148,7 @@ function main() {
       const positionX = Math.floor((e.x - canvasB.offsetLeft) / blockSize);
       const positionY = Math.floor((e.y - canvasB.offsetTop) / blockSize);
 
-      imageB[positionY][positionX] = false;
+      imageB[positionY][positionX] = null;
 
       ctxB.clearRect(0, 0, width, width);
       drawArt(imageB, ctxB, blockSize);
@@ -195,7 +199,7 @@ class VoxelCanvas {
       width / 2,
       height / 2,
       height / -2,
-      -100,
+      -1000,
       100
     );
 
@@ -204,12 +208,15 @@ class VoxelCanvas {
     });
     renderer.setSize(width, height);
 
-    camera.position.z = 10;
-
     const object = new THREE.Object3D();
     this.drawCubes(object);
     scene.add(object);
     object.rotation.y = 1.57;
+    object.scale.x = 1.5;
+    object.scale.y = 1.5;
+    object.scale.z = 1.5;
+
+    camera.position.z = 1;
 
     let previousMousePosition = {
       x: 0,
@@ -220,16 +227,23 @@ class VoxelCanvas {
       if (e.buttons === 1) {
         console.log(object.rotation.x);
         //TODO: X axis rotation
-        if (object.rotation.x >= -0.29 && object.rotation.x <= 0.29) {
+        //
+        //
+
+        if (object.rotation.x > 0.99) {
+          object.rotation.x = 0.99;
+        } else if (object.rotation.x < -0.99) {
+          object.rotation.x = -0.99;
+        } else {
           let movement = (e.offsetY - previousMousePosition.y) * 0.01;
-          if (movement > 0.29) {
-            object.rotation.x = 0.29;
-          } else if (movement < -0.29) {
-            object.rotation.x = -0.29;
-          } else {
-            object.rotation.x = movement;
+          if (
+            object.rotation.x + movement >= -0.99 &&
+            object.rotation.x + movement <= 0.99
+          ) {
+            object.rotation.x += movement;
           }
         }
+
         object.rotation.y = e.offsetX * 0.01;
 
         previousMousePosition = {
@@ -317,7 +331,7 @@ class VoxelCanvas {
           this.cubes[z][y][x].position.x = x * 10 - (PIXELCOUNT * 10) / 2;
           this.cubes[z][y][x].position.y = y * -10 - (PIXELCOUNT * -10) / 2;
           this.cubes[z][y][x].position.z = z * -10 - (PIXELCOUNT * -10) / 2;
-          if (imageA[y][x] === false) {
+          if (imageA[y][x] === null) {
             this.cubes[z][y][x].visible = false;
           }
         }
@@ -327,7 +341,7 @@ class VoxelCanvas {
     for (let x = PIXELCOUNT - 1; x >= 0; x--) {
       for (let y = 0; y < PIXELCOUNT; y++) {
         for (let z = 0; z < PIXELCOUNT; z++) {
-          if (imageB[y][z] === false) {
+          if (imageB[y][z] === null) {
             this.cubes[z][y][x].visible = false;
           }
         }
@@ -339,7 +353,7 @@ class VoxelCanvas {
     for (let x = PIXELCOUNT - 1; x >= 0; x--) {
       for (let y = 0; y < PIXELCOUNT; y++) {
         for (let z = 0; z < PIXELCOUNT; z++) {
-          if (imageB[y][z] === false) {
+          if (imageB[y][z] === null) {
             this.cubes[z][y][x].visible = false;
           }
         }
@@ -351,7 +365,7 @@ class VoxelCanvas {
     for (let z = 0; z < PIXELCOUNT; z++) {
       for (let y = 0; y < PIXELCOUNT; y++) {
         for (let x = 0; x < PIXELCOUNT; x++) {
-          this.cubes[z][y][x].visible = imageA[y][x];
+          this.cubes[z][y][x].visible = imageA[y][x] !== null;
         }
       }
     }

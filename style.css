@@ -24,3 +24,7 @@ canvas {
 .result {
   width: 800px;
 }
+
+.palette {
+  padding: 20px;
+}

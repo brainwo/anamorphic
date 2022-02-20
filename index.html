@@ -18,14 +18,20 @@
           <button onclick="VoxelCanvas.context.exportJson()">Export</button>
           <button onclick="reset()">Reset</button>
           <button onclick="clearCanvas()">Clear</button>
+          <button onclick="load()">Load</button>
         </div>
         <canvas id="canvasB" height="200" width="200"> </canvas>
       </div>
+      <canvas id="palette" height="50" width="400"></canvas>
     </div>
     <canvas id="result"></canvas>
   </body>
   <script src="index.js"></script>
   <script src="draw.js"></script>
+  <script src="palette.js"></script>
+  <script src="./assets/flower.json"></script>
+  <script src="./assets/star.json"></script>
+  <script src="./assets/blank.json"></script>
   <script
     src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
     onload="main()"
