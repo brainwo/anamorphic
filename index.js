@@ -28,7 +28,11 @@ function initCanvas(side, ctx, width, blockSize) {
       } else {
         imageB = file.data;
 
-        VoxelCanvas.context.init();
+        if (!VoxelCanvas.context.isRunning) {
+          VoxelCanvas.context.init();
+        } else {
+          VoxelCanvas.context.resetCanvas();
+        }
       }
       drawGrid(ctx, width, blockSize);
     });
@@ -39,6 +43,21 @@ function drawGrid(ctx, width, blockSize) {
   drawLines(Alignments.Vertical, ctx, width, blockSize);
 }
 
+function reset() {
+  const canvasA = document.getElementById("canvasA");
+  const ctxA = canvasA.getContext("2d");
+  const canvasB = document.getElementById("canvasB");
+  const ctxB = canvasB.getContext("2d");
+  const width = canvasA.width;
+  const blockSize = width / PIXELCOUNT;
+
+  ctxA.clearRect(0, 0, width, width);
+  ctxB.clearRect(0, 0, width, width);
+
+  initCanvas(Sides.A, ctxA, width, blockSize);
+  initCanvas(Sides.B, ctxB, width, blockSize);
+}
+
 function main() {
   const canvasA = document.getElementById("canvasA");
   const ctxA = canvasA.getContext("2d");
@@ -47,12 +66,28 @@ function main() {
   const width = canvasA.width;
   const blockSize = width / PIXELCOUNT;
 
-  const debug = document.getElementById("debug").getContext("2d");
+  reset();
 
-  initCanvas(Sides.A, ctxA, width, blockSize);
-  initCanvas(Sides.B, ctxB, width, blockSize);
+  function canvasDraw(ctx, image, positionX, positionY) {
+    image[positionY][positionX] = true;
 
-  // TODO: Bring back mouse click (since mousemove doesn't always work)
+    ctx.clearRect(0, 0, width, width);
+    drawArt(imageA, ctxA, blockSize);
+    drawGrid(ctxA, width, blockSize);
+
+    VoxelCanvas.context.requestUpdate({
+      remove: false,
+      x: positionX,
+      y: positionY,
+    });
+  }
+
+  canvasA.addEventListener("click", (e) => {
+    const positionX = Math.floor((e.x - canvasA.offsetLeft) / blockSize);
+    const positionY = Math.floor((e.y - canvasA.offsetTop) / blockSize);
+
+    canvasDraw(ctxA, imageA, positionX, positionY);
+  });
 
   canvasA.addEventListener("mousemove", (e) => {
     const positionX = Math.floor((e.x - canvasA.offsetLeft) / blockSize);
@@ -84,11 +119,14 @@ function main() {
         y: positionY,
       });
     }
-
-    debug.clearRect(0, 0, width, 12);
-    debug.font = "10px Arial";
-    debug.fillText(`Location: ${positionX}, ${positionY}`, 0, 10);
   });
+
+  //canvasB.addEventListener("click", (e) => {
+  //const positionX = Math.floor((e.x - canvasB.offsetLeft) / blockSize);
+  //const positionY = Math.floor((e.y - canvasB.offsetTop) / blockSize);
+
+  //canvasDraw(ctxB, imageB, positionX, positionY);
+  //});
 
   canvasB.addEventListener("mousemove", (e) => {
     if (e.buttons === 1) {
@@ -111,17 +149,7 @@ function main() {
       ctxB.clearRect(0, 0, width, width);
       drawArt(imageB, ctxB, blockSize);
       drawGrid(ctxB, width, blockSize);
-
-      //TODO: CanvasB drawing to VoxelCanvas
     }
-
-    debug.clearRect(0, 12, width, width);
-    debug.font = "10px Arial";
-    debug.fillText(
-      `Location: ${e.x - canvasB.offsetLeft}, ${e.y - canvasB.offsetTop}`,
-      0,
-      24
-    );
   });
 
   canvasA.addEventListener(
@@ -151,9 +179,13 @@ class VoxelCanvas {
     this.cubes = [[[]]];
     this.update = false;
     this.updateBlock = {};
+    this.isRunning = false;
   }
 
   init() {
+    let canvas = document.querySelector("#result");
+    this.isRunning = true;
+
     const width = 820;
     const height = 500;
     const scene = new THREE.Scene();
@@ -168,7 +200,7 @@ class VoxelCanvas {
     );
 
     const renderer = new THREE.WebGLRenderer({
-      canvas: document.querySelector("#result"),
+      canvas: canvas,
     });
     renderer.setSize(width, height);
 
@@ -179,11 +211,36 @@ class VoxelCanvas {
     scene.add(object);
     object.rotation.y = 1.57;
 
-    const animate = () => {
-      requestAnimationFrame(animate);
+    let previousMousePosition = {
+      x: 0,
+      y: 0,
+    };
 
+    canvas.addEventListener("mousemove", (e) => {
+      if (e.buttons === 1) {
+        console.log(object.rotation.x);
+        //TODO: X axis rotation
+        if (object.rotation.x >= -0.29 && object.rotation.x <= 0.29) {
+          let movement = (e.offsetY - previousMousePosition.y) * 0.01;
+          if (movement > 0.29) {
+            object.rotation.x = 0.29;
+          } else if (movement < -0.29) {
+            object.rotation.x = -0.29;
+          } else {
+            object.rotation.x = movement;
+          }
+        }
+        object.rotation.y = e.offsetX * 0.01;
+
+        previousMousePosition = {
+          x: e.offsetX,
+          y: e.offsetY,
+        };
+      }
+    });
+
+    const updateBlock = async () => {
       if (this.update) {
-        console.log("hit");
         if (this.updateBlock.remove) {
           for (let z = 0; z < PIXELCOUNT; z++) {
             this.cubes[z][this.updateBlock.y][
@@ -198,10 +255,16 @@ class VoxelCanvas {
           }
         }
 
+        this.cutB();
+
         this.update = false;
       }
+    };
 
-      object.rotation.y += 0.01;
+    const animate = () => {
+      requestAnimationFrame(animate);
+
+      updateBlock();
 
       //if (object.rotation.y > 1.57 * 3) {
       //swapButton();
@@ -225,9 +288,27 @@ class VoxelCanvas {
         this.cubes[z][y] = [];
         for (let x = 0; x < PIXELCOUNT; x++) {
           this.geometries[z][y][x] = new THREE.BoxGeometry(10, 10, 10);
-          this.materials[z][y][x] = new THREE.MeshBasicMaterial({
-            color: 0xb000ba,
-          });
+          this.materials[z][y][x] = [
+            new THREE.MeshBasicMaterial({
+              color: 0xffffff,
+            }),
+            new THREE.MeshBasicMaterial({
+              color: 0xffffff,
+            }),
+            new THREE.MeshBasicMaterial({
+              color: 0xffffff,
+            }),
+            new THREE.MeshBasicMaterial({
+              color: 0xffffff,
+            }),
+            new THREE.MeshBasicMaterial({
+              color: 0xededed,
+            }),
+            new THREE.MeshBasicMaterial({
+              color: 0xededed,
+            }),
+          ];
+
           this.cubes[z][y][x] = new THREE.Mesh(
             this.geometries[z][y][x],
             this.materials[z][y][x]
@@ -254,15 +335,7 @@ class VoxelCanvas {
     }
   }
 
-  resetCanvas() {
-    for (let z = 0; z < PIXELCOUNT; z++) {
-      for (let y = 0; y < PIXELCOUNT; y++) {
-        for (let x = 0; x < PIXELCOUNT; x++) {
-          this.cubes[z][y][x].visible = imageA[y][x];
-        }
-      }
-    }
-
+  cutB() {
     for (let x = PIXELCOUNT - 1; x >= 0; x--) {
       for (let y = 0; y < PIXELCOUNT; y++) {
         for (let z = 0; z < PIXELCOUNT; z++) {
@@ -272,6 +345,18 @@ class VoxelCanvas {
         }
       }
     }
+  }
+
+  resetCanvas() {
+    for (let z = 0; z < PIXELCOUNT; z++) {
+      for (let y = 0; y < PIXELCOUNT; y++) {
+        for (let x = 0; x < PIXELCOUNT; x++) {
+          this.cubes[z][y][x].visible = imageA[y][x];
+        }
+      }
+    }
+
+    this.cutB();
   }
 
   requestUpdate(updateBlock) {
@@ -302,7 +387,7 @@ class VoxelCanvas {
   }
 }
 
-function swapButton() {
+function swap() {
   const imageC = imageA;
   imageA = imageB;
   imageB = imageC;
@@ -323,4 +408,36 @@ function swapButton() {
   drawGrid(ctxB, width, blockSize);
 
   VoxelCanvas.context.resetCanvas();
+}
+
+function clearCanvas() {
+  console.log("clear");
+
+  const canvasA = document.getElementById("canvasA");
+  const ctxA = canvasA.getContext("2d");
+  const canvasB = document.getElementById("canvasB");
+  const ctxB = canvasB.getContext("2d");
+  const width = canvasA.width;
+  const blockSize = width / PIXELCOUNT;
+
+  fetch("./assets/blank.json")
+    .then((response) => {
+      return response.json();
+    })
+    .then((file) => {
+      ctxA.clearRect(0, 0, width, width);
+      ctxB.clearRect(0, 0, width, width);
+      data = file.data;
+
+      //TODO: move data to ImageA and ImageB
+      imageA = [...data];
+      imageB = [...data];
+
+      drawArt(imageA, ctxA, blockSize);
+      drawArt(imageB, ctxB, blockSize);
+
+      VoxelCanvas.context.resetCanvas();
+      drawGrid(ctxA, width, blockSize);
+      drawGrid(ctxB, width, blockSize);
+    });
 }

@@ -8,14 +8,16 @@
     <link rel="stylesheet" type="text/css" href="style.css" />
     <link rel="icon" href="img/favicon.png" />
   </head>
-  <body onload="main()">
+  <body>
+    <h2>Anamorphic Voxel Generator</h2>
     <div class="bottom">
-      <canvas id="debug" height="50" width="450"> </canvas>
       <div class="drawing">
         <canvas id="canvasA" height="200" width="200"> </canvas>
         <div class="divider">
-          <button onclick="swapButton()">Swap</button>
+          <button onclick="swap()">Swap</button>
           <button onclick="VoxelCanvas.context.exportJson()">Export</button>
+          <button onclick="reset()">Reset</button>
+          <button onclick="clearCanvas()">Clear</button>
         </div>
         <canvas id="canvasB" height="200" width="200"> </canvas>
       </div>
@@ -24,5 +26,8 @@
   </body>
   <script src="index.js"></script>
   <script src="draw.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+    onload="main()"
+  ></script>
 </html>
