@@ -23,6 +23,8 @@ function initCanvas(side, ctx, width, blockSize) {
       return response.json();
     })
     .then((file) => {
+      drawGrid(ctx, width, blockSize);
+
       drawArt(file.data, ctx, blockSize);
       if (side.isA) {
         imageA = file.data;
@@ -35,7 +37,6 @@ function initCanvas(side, ctx, width, blockSize) {
           VoxelCanvas.context.resetCanvas();
         }
       }
-      drawGrid(ctx, width, blockSize);
     });
 }
 
@@ -73,16 +74,17 @@ function main() {
   initPalette();
 
   function canvasDraw(ctx, image, positionX, positionY) {
-    image[positionY][positionX] = true;
+    image[positionY][positionX] = selectedColor;
 
     ctx.clearRect(0, 0, width, width);
-    drawArt(imageA, ctxA, blockSize);
-    drawGrid(ctxA, width, blockSize);
+    drawGrid(ctx, width, blockSize);
+    drawArt(image, ctx, blockSize);
 
     VoxelCanvas.context.requestUpdate({
       remove: false,
       x: positionX,
       y: positionY,
+      color: selectedColor,
     });
   }
 
@@ -100,13 +102,15 @@ function main() {
       imageA[positionY][positionX] = selectedColor;
 
       ctxA.clearRect(0, 0, width, width);
-      drawArt(imageA, ctxA, blockSize);
+
       drawGrid(ctxA, width, blockSize);
+      drawArt(imageA, ctxA, blockSize);
 
       VoxelCanvas.context.requestUpdate({
         remove: false,
         x: positionX,
         y: positionY,
+        color: selectedColor,
       });
     }
 
@@ -114,13 +118,15 @@ function main() {
       imageA[positionY][positionX] = null;
 
       ctxA.clearRect(0, 0, width, width);
-      drawArt(imageA, ctxA, blockSize);
+
       drawGrid(ctxA, width, blockSize);
+      drawArt(imageA, ctxA, blockSize);
 
       VoxelCanvas.context.requestUpdate({
         remove: true,
         x: positionX,
         y: positionY,
+        color: selectedColor,
       });
     }
   });
@@ -140,8 +146,9 @@ function main() {
       imageB[positionY][positionX] = selectedColor;
 
       ctxB.clearRect(0, 0, width, width);
-      drawArt(imageB, ctxB, blockSize);
+
       drawGrid(ctxB, width, blockSize);
+      drawArt(imageB, ctxB, blockSize);
     }
 
     if (e.buttons === 2) {
@@ -151,8 +158,9 @@ function main() {
       imageB[positionY][positionX] = null;
 
       ctxB.clearRect(0, 0, width, width);
-      drawArt(imageB, ctxB, blockSize);
+
       drawGrid(ctxB, width, blockSize);
+      drawArt(imageB, ctxB, blockSize);
     }
   });
 
@@ -184,6 +192,7 @@ class VoxelCanvas {
     this.update = false;
     this.updateBlock = {};
     this.isRunning = false;
+    this.rotate = true;
   }
 
   init() {
@@ -194,12 +203,14 @@ class VoxelCanvas {
     const height = 500;
     const scene = new THREE.Scene();
 
+    scene.background = new THREE.Color(0x212121);
+
     const camera = new THREE.OrthographicCamera(
       width / -2,
       width / 2,
       height / 2,
       height / -2,
-      -1000,
+      -2000,
       100
     );
 
@@ -218,7 +229,7 @@ class VoxelCanvas {
 
     camera.position.z = 1;
 
-    let previousMousePosition = {
+    let previousPosition = {
       x: 0,
       y: 0,
     };
@@ -226,31 +237,65 @@ class VoxelCanvas {
     canvas.addEventListener("mousemove", (e) => {
       if (e.buttons === 1) {
         console.log(object.rotation.x);
-        //TODO: X axis rotation
-        //
-        //
 
-        if (object.rotation.x > 0.99) {
-          object.rotation.x = 0.99;
-        } else if (object.rotation.x < -0.99) {
-          object.rotation.x = -0.99;
+        if (object.rotation.x > 1) {
+          object.rotation.x = 1;
+        } else if (object.rotation.x < -1) {
+          object.rotation.x = -1;
         } else {
-          let movement = (e.offsetY - previousMousePosition.y) * 0.01;
+          let movement = (e.offsetY - previousPosition.y) * 0.01;
           if (
-            object.rotation.x + movement >= -0.99 &&
-            object.rotation.x + movement <= 0.99
+            object.rotation.x + movement >= -1 &&
+            object.rotation.x + movement <= 1
           ) {
             object.rotation.x += movement;
           }
         }
 
-        object.rotation.y = e.offsetX * 0.01;
+        object.rotation.y += (e.offsetX - previousPosition.x) * 0.01;
 
-        previousMousePosition = {
+        previousPosition = {
           x: e.offsetX,
           y: e.offsetY,
         };
+
+        this.rotate = false;
+      } else if (e.buttons === 2) {
+        if (object.scale.x > 2) {
+          object.scale.copy(new THREE.Vector3(2, 2, 2));
+        } else if (object.scale.x < 0.5) {
+          object.scale.copy(new THREE.Vector3(0.5, 0.5, 0.5));
+        } else {
+          let movementX = (e.offsetY - previousPosition.y) * 0.01;
+          let movementY = (e.offsetx - previousPosition.x) * 0.01;
+          if (
+            object.scale.x + movementX >= 0.5 &&
+            object.scale.x + movementX <= 2
+          ) {
+            object.scale.addScalar(movementX);
+          }
+          if (
+            object.scale.x + movementY >= 0.5 &&
+            object.scale.x + movementY <= 2
+          ) {
+            object.scale.addScalar(movementY);
+          }
+        }
+
+        previousPosition = {
+          x: e.offsetX,
+          y: e.offsetY,
+        };
+
+        this.rotate = false;
+      } else {
+        // TODO: check mouse enter and leave
+        this.rotate = true;
       }
+    });
+
+    canvas.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
     });
 
     const updateBlock = async () => {
@@ -260,12 +305,32 @@ class VoxelCanvas {
             this.cubes[z][this.updateBlock.y][
               this.updateBlock.x
             ].visible = false;
+
+            this.materials[z][this.updateBlock.y][this.updateBlock.x][4] =
+              new THREE.MeshBasicMaterial({
+                color: this.updateBlock.color,
+              });
+
+            this.materials[z][this.updateBlock.y][this.updateBlock.x][5] =
+              new THREE.MeshBasicMaterial({
+                color: this.updateBlock.color,
+              });
           }
         } else {
           for (let z = 0; z < PIXELCOUNT; z++) {
             this.cubes[z][this.updateBlock.y][
               this.updateBlock.x
             ].visible = true;
+
+            this.materials[z][this.updateBlock.y][this.updateBlock.x][4] =
+              new THREE.MeshBasicMaterial({
+                color: this.updateBlock.color,
+              });
+
+            this.materials[z][this.updateBlock.y][this.updateBlock.x][5] =
+              new THREE.MeshBasicMaterial({
+                color: this.updateBlock.color,
+              });
           }
         }
 
@@ -280,10 +345,9 @@ class VoxelCanvas {
 
       updateBlock();
 
-      //if (object.rotation.y > 1.57 * 3) {
-      //swapButton();
-      //object.rotation.y = 1.57;
-      //}
+      if (this.rotate) {
+        object.rotation.y += 0.01;
+      }
 
       renderer.render(scene, camera);
     };
@@ -304,22 +368,22 @@ class VoxelCanvas {
           this.geometries[z][y][x] = new THREE.BoxGeometry(10, 10, 10);
           this.materials[z][y][x] = [
             new THREE.MeshBasicMaterial({
-              color: 0xffffff,
+              color: imageB[y][z],
             }),
             new THREE.MeshBasicMaterial({
-              color: 0xffffff,
+              color: imageB[y][z],
             }),
             new THREE.MeshBasicMaterial({
-              color: 0xffffff,
+              color: 0xdcdcdc,
             }),
             new THREE.MeshBasicMaterial({
-              color: 0xffffff,
+              color: 0xdcdcdc,
             }),
             new THREE.MeshBasicMaterial({
-              color: 0xededed,
+              color: imageA[y][x],
             }),
             new THREE.MeshBasicMaterial({
-              color: 0xededed,
+              color: imageA[y][x],
             }),
           ];
 
@@ -365,6 +429,14 @@ class VoxelCanvas {
     for (let z = 0; z < PIXELCOUNT; z++) {
       for (let y = 0; y < PIXELCOUNT; y++) {
         for (let x = 0; x < PIXELCOUNT; x++) {
+          let imageAFace = this.materials[x][y][z][4];
+          let imageBFace = this.materials[z][y][x][0];
+
+          this.materials[z][y][x][0] = imageAFace;
+          this.materials[z][y][x][1] = imageAFace;
+          this.materials[x][y][z][4] = imageBFace;
+          this.materials[x][y][z][5] = imageBFace;
+
           this.cubes[z][y][x].visible = imageA[y][x] !== null;
         }
       }
@@ -414,12 +486,12 @@ function swap() {
   const blockSize = width / PIXELCOUNT;
 
   ctxA.clearRect(0, 0, width, width);
-  drawArt(imageA, ctxA, blockSize);
   drawGrid(ctxA, width, blockSize);
+  drawArt(imageA, ctxA, blockSize);
 
   ctxB.clearRect(0, 0, width, width);
-  drawArt(imageB, ctxB, blockSize);
   drawGrid(ctxB, width, blockSize);
+  drawArt(imageB, ctxB, blockSize);
 
   VoxelCanvas.context.resetCanvas();
 }
@@ -447,11 +519,12 @@ function clearCanvas() {
       imageA = [...data];
       imageB = [...data];
 
+      drawGrid(ctxA, width, blockSize);
+      drawGrid(ctxB, width, blockSize);
+
       drawArt(imageA, ctxA, blockSize);
       drawArt(imageB, ctxB, blockSize);
 
       VoxelCanvas.context.resetCanvas();
-      drawGrid(ctxA, width, blockSize);
-      drawGrid(ctxB, width, blockSize);
     });
 }
